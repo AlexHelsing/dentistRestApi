@@ -1,5 +1,9 @@
 import { Schema, Types, Document } from "mongoose";
 import mongoose from "mongoose";
+import { Request } from "express";
+import Joi = require("joi");
+import jwt = require('jsonwebtoken');
+import bcrypt from 'bcrypt';
 
 interface Dentist extends Document{
     firstname: String,
@@ -11,7 +15,9 @@ interface Dentist extends Document{
         lat: Number,
         lng: Number
     },
-    DOB: Date
+    DOB: Date,
+    signJWT: () => Promise<string>,
+    hashPassword: () => Promise<void>
 
 }
 
@@ -28,5 +34,36 @@ const dentistSchema = new Schema<Dentist>({
     },
     DOB: {type: Date, required: true}
 });
+
+dentistSchema.methods.signJWT = async function() {
+    if(!process.env.JWT_SECRET){
+        throw new Error('No sceret was provided for jsonwebtoken');
+    }
+
+    let token = await jwt.sign({_id: this._id}, process.env.JWT_SECRET, {expiresIn: '8h'})
+    return token;
+}
+
+dentistSchema.methods.hashPassword = async function(): Promise<void>{
+    let hashed = await bcrypt.hash(this.password, 10);
+    this.password = hashed;
+}
+
+export function validateRegistration(body: any) {
+    const Schema = Joi.object({
+        firstname: Joi.string().required().max(255).min(1),
+        lastname: Joi.string().required().max(255).min(1),
+        phone_number: Joi.number().required(),
+        email: Joi.string().email().required().max(255),
+        password: Joi.string().required().max(255).min(5),
+        location: Joi.object({
+            lat: Joi.number().required(),
+            lng: Joi.number().required()
+        }),
+        DOB: Joi.date().required()
+    })
+
+    return Schema.validate(body);
+}
 
 export const Dentist = mongoose.model<Dentist>('Dentist', dentistSchema);
