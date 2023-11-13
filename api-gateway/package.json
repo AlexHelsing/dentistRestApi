@@ -7,7 +7,7 @@
     "test": "jest",
     "build": "npx tsc",
     "start": "node dist/app.js",
-    "dev": "concurrently \"npx tsc --watch\" \"nodemon -q dist/app.js\""
+    "dev": "concurrently \"npx tsc --skipLibCheck --watch\" \"nodemon -q dist/src/app.js\""  
   },
   "author": "",
   "license": "ISC",
