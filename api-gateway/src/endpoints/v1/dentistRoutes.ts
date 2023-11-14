@@ -44,7 +44,7 @@ router.get('/:id/appointment_slots/:appointment_id', [validateObjectId], (req: R
 router.post('/', asyncwrapper(async(req: Request, res: Response) => {
 
     let { error } = validateRegistration(req.body);
-    if(error) return res.status(403).json({"message": "Invalid dentist information"});
+    if(error) return res.status(403).json({"message": "Invalid dentist information" + error.details[0].message});
 
     let dentist = await Dentist.findOne({email: req.body.email});
     if(dentist) return res.status(409).json({"message": "Dentist with given email already exists"});
@@ -88,7 +88,7 @@ router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrap
 router.put('/:id', [validateObjectId, authDentist], asyncwrapper( async(req: Request, res: Response) => {
 
     let { error } = validateUpdate(req.body);
-    if(error) return res.status(403).json('Invalid update format for dentist');
+    if(error) return res.status(403).json('Invalid update format for dentist' + error.details[0].message);
 
     if(req.body.password){
         let hashed = await bcrypt.hash(req.body.password, 10);

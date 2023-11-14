@@ -1,40 +1,30 @@
-import { Schema, Types, Document } from "mongoose";
-import mongoose from "mongoose";
+import { Schema, Types, Document, model } from "mongoose";
 import Joi = require("joi");
 import jwt = require('jsonwebtoken');
 import bcrypt from 'bcrypt';
 
-interface Dentist extends Document{
+interface Patient extends Document {
     firstname: String,
     lastname: String,
     phone_number: Number,
     email: String,
     password: String,
-    location: {
-        lat: Number,
-        lng: Number
-    },
     DOB: Date,
     signJWT: () => Promise<string>,
     hashPassword: () => Promise<void>
-
 }
 
-const dentistSchema = new Schema<Dentist>({
+const patientSchema = new Schema<Patient>({
     _id: {type: Types.ObjectId, auto: true},
     firstname: {type: String, required: true, minlength: 1, maxlength: 255},
     lastname: {type: String, required: true, minlength: 1, maxlength: 255},
     phone_number: {type: Number, required: true},
     email: {type: String, required: true, maxlength:255, unique: true},
     password: {type: String, required: true, minlength:5, maxlength:255},
-    location: {
-        lat: {type: Number, required: true},
-        lng: {type: Number, required: true}
-    },
     DOB: {type: Date, required: true}
 });
 
-dentistSchema.methods.signJWT = async function() {
+patientSchema.methods.signJWT = async function() {
     if(!process.env.JWT_SECRET){
         throw new Error('No sceret was provided for jsonwebtoken');
     }
@@ -43,7 +33,7 @@ dentistSchema.methods.signJWT = async function() {
     return token;
 }
 
-dentistSchema.methods.hashPassword = async function(): Promise<void>{
+patientSchema.methods.hashPassword = async function(): Promise<void>{
     let hashed = await bcrypt.hash(this.password, 10);
     this.password = hashed;
 }
@@ -55,10 +45,6 @@ export function validateRegistration(body: any) {
         phone_number: Joi.number().required(),
         email: Joi.string().email().required().max(255),
         password: Joi.string().required().max(255).min(5),
-        location: Joi.object({
-            lat: Joi.number().required(),
-            lng: Joi.number().required()
-        }),
         DOB: Joi.date().required()
     })
 
@@ -72,14 +58,10 @@ export function validateUpdate(body: any) {
         phone_number: Joi.number(),
         email: Joi.string().email().max(255),
         password: Joi.string().max(255).min(5),
-        location: Joi.object({
-            lat: Joi.number(),
-            lng: Joi.number()
-        }),
         DOB: Joi.date()
     })
 
     return Schema.validate(body);
 }
 
-export const Dentist = mongoose.model<Dentist>('Dentist', dentistSchema);
+export const Patient = model<Patient>('Patient', patientSchema)
