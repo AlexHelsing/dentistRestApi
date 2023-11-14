@@ -31,6 +31,14 @@ router.get('/:id/location', [validateObjectId], asyncwrapper( async(req: Request
     res.status(200).json(dentist.location)
 }));
 
+router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper(async(req:Request, res:Response) => {
+    //TODO
+}));
+
+router.get('/:id/appointment_slots/:appointment_id', (req: Request, res: Response) => {
+    //TODO
+});
+
 // POST Requests
 router.post('/', asyncwrapper(async(req: Request, res: Response) => {
 
@@ -68,6 +76,13 @@ router.post('/login', asyncwrapper( async(req: Request, res: Response ) => {
     res.status(403).json({"message": "incorrect password"});
 }));
 
+router.post('/:id/appointment_slots', asyncwrapper(async (req: Request, res:Response) => {
+    let dentist = await Dentist.findById(req.params.id);
+    if(!dentist) return res.status(404).json({"message":"Dentist with given id was not found."});
+
+    // TODO: Implement Mqtt connection to broker and publish appointment_slots
+}));
+
 // PUT Requests
 router.put('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
 
@@ -92,6 +107,10 @@ router.delete('/:id', [validateObjectId], asyncwrapper((req: Request, res: Respo
     if(!dentist) return res.status(404).json({"message": "Dentist with givne id was not found"});
 
     return res.status(200).json({dentist, "message": "Dentist was deleted successfully"});
+}));
+
+router.delete('/:id/appointment_slots/:appointment_id', asyncwrapper(async(req:Request, res:Response) => {
+    // TODO: Implement the cancellation of an appointment here
 }));
 
 // Exporting the router object
