@@ -2,6 +2,7 @@ import express from "express";
 import { Request, Response } from "express";
 import { Dentist, validateRegistration, validateUpdate } from "../../models/dentistModel";
 import validateObjectId from '../../middlewares/validObjectId'
+import authDentist from "../../middlewares/dentistAuth";
 import asyncwrapper from "../../middlewares/asyncwrapper";
 import bcrypt from 'bcrypt';
 
@@ -16,7 +17,7 @@ router.get('/', asyncwrapper( async(req: Request, res: Response) => {
     res.status(200).send(dentists); 
 }));
 
-router.get('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
+router.get('/:id', [authDentist, validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
     let dentist = await Dentist.findById(req.params.id).select('-password');
 
     if(!dentist) return res.status(404).json({"message": "Dentist with given id was not found"});
@@ -35,7 +36,7 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper(async(req:
     //TODO
 }));
 
-router.get('/:id/appointment_slots/:appointment_id', (req: Request, res: Response) => {
+router.get('/:id/appointment_slots/:appointment_id', [validateObjectId], (req: Request, res: Response) => {
     //TODO
 });
 
@@ -76,7 +77,7 @@ router.post('/login', asyncwrapper( async(req: Request, res: Response ) => {
     res.status(403).json({"message": "incorrect password"});
 }));
 
-router.post('/:id/appointment_slots', asyncwrapper(async (req: Request, res:Response) => {
+router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrapper(async (req: Request, res:Response) => {
     let dentist = await Dentist.findById(req.params.id);
     if(!dentist) return res.status(404).json({"message":"Dentist with given id was not found."});
 
@@ -84,7 +85,7 @@ router.post('/:id/appointment_slots', asyncwrapper(async (req: Request, res:Resp
 }));
 
 // PUT Requests
-router.put('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
+router.put('/:id', [validateObjectId, authDentist], asyncwrapper( async(req: Request, res: Response) => {
 
     let { error } = validateUpdate(req.body);
     if(error) return res.status(403).json('Invalid update format for dentist');
@@ -101,15 +102,15 @@ router.put('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Re
 }));
 
 // DELETE Requests
-router.delete('/:id', [validateObjectId], asyncwrapper((req: Request, res: Response) => {
-    let dentist = Dentist.findByIdAndDelete(req.params.id);
+router.delete('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
+    let dentist = await Dentist.findByIdAndDelete(req.params.id).select('email firstname lastname phone_number');
 
     if(!dentist) return res.status(404).json({"message": "Dentist with givne id was not found"});
 
-    return res.status(200).json({dentist, "message": "Dentist was deleted successfully"});
+    return res.status(200).json(dentist);
 }));
 
-router.delete('/:id/appointment_slots/:appointment_id', asyncwrapper(async(req:Request, res:Response) => {
+router.delete('/:id/appointment_slots/:appointment_id', [validateObjectId, authDentist],asyncwrapper(async(req:Request, res:Response) => {
     // TODO: Implement the cancellation of an appointment here
 }));
 
