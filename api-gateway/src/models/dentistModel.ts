@@ -1,6 +1,5 @@
 import { Schema, Types, Document } from "mongoose";
 import mongoose from "mongoose";
-import { Request } from "express";
 import Joi = require("joi");
 import jwt = require('jsonwebtoken');
 import bcrypt from 'bcrypt';
@@ -61,6 +60,23 @@ export function validateRegistration(body: any) {
             lng: Joi.number().required()
         }),
         DOB: Joi.date().required()
+    })
+
+    return Schema.validate(body);
+}
+
+export function validateUpdate(body: any) {
+    const Schema = Joi.object({
+        firstname: Joi.string().max(255).min(1),
+        lastname: Joi.string().max(255).min(1),
+        phone_number: Joi.number(),
+        email: Joi.string().email().max(255),
+        password: Joi.string().max(255).min(5),
+        location: Joi.object({
+            lat: Joi.number(),
+            lng: Joi.number()
+        }),
+        DOB: Joi.date()
     })
 
     return Schema.validate(body);

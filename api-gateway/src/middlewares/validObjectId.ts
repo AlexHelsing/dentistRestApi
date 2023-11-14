@@ -8,6 +8,7 @@ export default function validateObjectId (req: Request, res: Response, next: Nex
     if(isValidObjectId(req.params.id)) {
         next();
     }
-
-    return res.status(400).json({"message": "Invalid Object id"})
+    else{
+        return res.status(400).json({"message": "Invalid Object id"})
+    }
 }
