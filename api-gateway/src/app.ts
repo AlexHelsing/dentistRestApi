@@ -1,13 +1,28 @@
-import express, { Express, Request, Response , Application } from 'express';
-import dotenv from 'dotenv';
+import express, { Express, Request, Response } from 'express';
 import cors from 'cors';
+import { routerV1 } from './endpoints/v1/routesv1';
+import  connectDB  from './dbConnection'
+import * as dotenv from 'dotenv';
+import { errorHandlerMiddleware } from './middlewares/errorMiddleware';
 
 //For env File 
-dotenv.config();
+
+dotenv.config({ path: 'src/config/.env' });
+
+
+// Database connection
+connectDB();
 
 const app: Express = express();
+console.log(process.env.JWT_SECRET)
+//Middlewares
 app.use(cors());
 app.use(express.json());
+app.use(errorHandlerMiddleware)
+
+
+//v1 routes
+routerV1(app);
 
 const port = process.env.PORT || 3000;
 
