@@ -1,6 +1,5 @@
 import { Express } from "express";
-import dentistRoutes from "./dentistRoutes"
-
+import dentistRoutes from "./dentistRoutes";
 
 // All api routes will be added here 
 export function routerV1(app: Express) {

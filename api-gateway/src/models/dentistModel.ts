@@ -25,7 +25,7 @@ const dentistSchema = new Schema<Dentist>({
     firstname: {type: String, required: true, minlength: 1, maxlength: 255},
     lastname: {type: String, required: true, minlength: 1, maxlength: 255},
     phone_number: {type: Number, required: true},
-    email: {type: String, required: true, maxlength:255},
+    email: {type: String, required: true, maxlength:255, unique: true},
     password: {type: String, required: true, minlength:5, maxlength:255},
     location: {
         lat: {type: Number, required: true},
