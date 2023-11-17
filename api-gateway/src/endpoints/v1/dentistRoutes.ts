@@ -5,6 +5,7 @@ import validateObjectId from '../../middlewares/validObjectId'
 import authDentist from "../../middlewares/dentistAuth";
 import asyncwrapper from "../../middlewares/asyncwrapper";
 import bcrypt from 'bcrypt';
+import client from "../../mqttConnection";
 
 const router = express.Router() 
 
@@ -81,7 +82,24 @@ router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrap
     let dentist = await Dentist.findById(req.params.id);
     if(!dentist) return res.status(404).json({"message":"Dentist with given id was not found."});
 
-    // TODO: Implement Mqtt connection to broker and publish appointment_slots
+    // TODO: Implement Mqtt connection to broker and publish appointment_slots [In progress]
+    
+    if(!Array.isArray(req.body)) {
+        res.status(403).json({"message":"New appointment slots should be sent as an array"});
+    }
+
+    let payload = '[';
+    payload = req.body.map((appointment: any, i: number) => {
+        return payload = payload + JSON.stringify(appointment);
+    })
+    payload = payload + ']';
+
+    const topic = "Dentist/add_appointment_slot/req";
+    const message = payload;
+
+    client.publish(topic, message);
+    // TODO: Add sub method for response from appointment system.
+    res.status(200).json({"message": "test"}); 
 }));
 
 // PUT Requests
