@@ -6,6 +6,7 @@ import authDentist from "../../middlewares/dentistAuth";
 import asyncwrapper from "../../middlewares/asyncwrapper";
 import bcrypt from 'bcrypt';
 import client from "../../mqttConnection";
+import { error } from "console";
 
 const router = express.Router() 
 
@@ -79,27 +80,53 @@ router.post('/login', asyncwrapper( async(req: Request, res: Response ) => {
 }));
 
 router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrapper(async (req: Request, res:Response) => {
+    
     let dentist = await Dentist.findById(req.params.id);
     if(!dentist) return res.status(404).json({"message":"Dentist with given id was not found."});
-
-    // TODO: Implement Mqtt connection to broker and publish appointment_slots [In progress]
     
     if(!Array.isArray(req.body)) {
-        res.status(403).json({"message":"New appointment slots should be sent as an array"});
+        res.status(403).json({"message":"New appointment slots should be sent as an array of appointment objects."});
     }
 
+    //Payload construction
     let payload = '[';
-    payload = req.body.map((appointment: any, i: number) => {
-        return payload = payload + JSON.stringify(appointment);
+    payload = req.body.map((appointment: any) => {
+        return payload = payload + JSON.stringify({
+            ...appointment,
+            dentist_id: dentist?._id,
+            patient: null,
+            isBooked: false,
+        });
     })
     payload = payload + ']';
 
-    const topic = "Dentist/add_appointment_slot/req";
-    const message = payload;
+    const Reqtopic = "Dentist/add_appointment_slots/req";
+    const Restopic = "Dentist/add_appointment_slots/res";
 
-    client.publish(topic, message);
-    // TODO: Add sub method for response from appointment system.
-    res.status(200).json({"message": "test"}); 
+    // Publishing to the appointment service and wait for response 
+    if(!client.connected) return res.status(500).json({"message": "Internal server error"});
+        
+    client.subscribe(Restopic, (err) => {
+        console.error(err);
+    }); 
+
+    client.publish(Reqtopic, payload, {qos: 1}, (err) => {
+        if(err !== null) {
+
+        console.error(err);
+        return res.status(500).json({"message":"Internal server error"});
+        }
+    });
+    /* TODO: add some sort of timeout method in case Appointment system is not online or 
+     it is taking it way to long to respond. */
+    client.on('message', (topic, payload, packet) => {
+        if(topic === Restopic) {
+            console.log(`topic: ${topic} , payload: ${payload}, packet: ${packet}`)
+            let response = JSON.parse(payload.toString());
+
+            return res.status(response.status).json({"message": response.message})
+        }
+    });
 }));
 
 // PUT Requests
