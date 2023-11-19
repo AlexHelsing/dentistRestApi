@@ -33,7 +33,7 @@ router.get('/:id/location', [validateObjectId], asyncwrapper( async(req: Request
     res.status(200).json(dentist.location)
 }));
 
-router.get('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrapper(async (req: Request, res: Response) => {
+router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper(async (req: Request, res: Response) => {
 
     let dentist = await Dentist.findById(req.params.id);
     if (!dentist) return res.status(404).json({"message": "Dentist with given id was not found"});
@@ -78,9 +78,52 @@ router.get('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrapp
     return res.status(response.status).json(response.data);
 }));
 
-router.get('/:id/appointment_slots/:appointment_id', [validateObjectId], (req: Request, res: Response) => {
-    //TODO
-});
+router.get('/:id/appointment_slots/:appointment_id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
+    let dentist = await Dentist.findById(req.params.id);
+    if(!dentist) return res.status(404).json({"message":"Dentist with given id was not found."});
+    
+    if(!client.connected) return res.status(500).json({"message":"Internal server error"});
+
+    const Reqtopic = "Dentist/get_appointments/req";
+    const Restopic = "Dentist/get_appointments/res";
+
+    // Promisify the subscribe and publish operations
+    const subscribeAsync = () => new Promise<void>((resolve) => {
+        client.subscribe(Restopic, (err) => {
+            if (err !== null) console.log(err);
+            resolve();
+        });
+    });
+
+    const publishAsync = () => new Promise<void>((resolve) => {
+        client.publish(Reqtopic, JSON.stringify({dentist_id: dentist?._id}), {qos: 1}, (err) => {
+            if (err !== null) console.log(err);
+            resolve();
+        });
+    });
+
+    await Promise.all([subscribeAsync(), publishAsync()]);
+    // TODO: Add a timout for unresolved requests after 5 sec.
+    const response = await new Promise<any>((resolve) => {
+        client.on('message', (topic, payload, packet) => {
+            if (topic === Restopic) {
+                client.unsubscribe(Restopic);
+                console.log(`topic: ${topic}, payload: ${payload}`);
+
+                const parsedPayload = JSON.parse(payload.toString());
+                let status = parsedPayload.pop().status;
+                resolve({status, data: parsedPayload});
+            }
+        });
+    });
+
+    let appointment = response.data.find((appointment: any) => {
+        if(appointment._id === req.params.appointment_id) return appointment;
+    })
+
+    if(appointment) return res.status(response.status).json(appointment);
+    return res.status(404).json({"message": "Appointment with given id was not found."});
+}));
 
 // POST Requests
 router.post('/', asyncwrapper(async(req: Request, res: Response) => {
