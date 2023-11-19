@@ -60,6 +60,7 @@ router.get('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrapp
 
     await Promise.all([subscribeAsync(), publishAsync()]);
 
+    //TODO : Add a timeout mechanism if request is not resolved after 5 seconds.
     // Use Promise to handle asynchronous message handling
     const response = await new Promise<any>((resolve) => {
         client.on('message', (topic, payload, packet) => {
@@ -73,7 +74,7 @@ router.get('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrapp
             }
         });
     });
-    //TODO : Add a timeout mechanism if request is not resolved after 5 seconds.
+
     return res.status(response.status).json(response.data);
 }));
 
@@ -119,8 +120,6 @@ router.post('/login', asyncwrapper( async(req: Request, res: Response ) => {
 }));
 
 router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrapper(async (req: Request, res:Response) => {
-    // TODO: Transfrom all requests to promise
-
     let dentist = await Dentist.findById(req.params.id);
     if(!dentist) return res.status(404).json({"message":"Dentist with given id was not found."});
     
@@ -146,29 +145,36 @@ router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrap
     // Publishing to the appointment service and wait for response 
     if(!client.connected) return res.status(500).json({"message": "Internal server error"});
         
-    client.subscribe(Restopic, (err) => {
-        console.error(err);
-    }); 
+    let asyncSub = () => new Promise<void>((resolve) => {
+        client.subscribe(Restopic, (err) => {
+            if(err !== null) console.log(err);
+            resolve()
+        })
+    })
 
-    client.publish(Reqtopic, payload, {qos: 1}, (err) => {
-        if(err !== null) {
+    let asyncPub = () => new Promise<void>((resolve) => {
+        client.publish(Reqtopic, payload, {qos: 1}, (err) => {
+            if(err !== null) console.log(err);
+            resolve()
+        });
+    })
 
-        console.error(err);
-        return res.status(500).json({"message":"Internal server error"});
-        }
-    });
+    await Promise.all([asyncSub(), asyncPub()]);
     /* 
     TODO: add some sort of timeout method in case Appointment system is not online or 
     it is taking it way to long to respond. 
     */
-    client.on('message', (topic, payload, packet) => {
-        if(topic === Restopic) {
-            console.log(`topic: ${topic} , payload: ${payload}, packet: ${packet}`)
-            let response = JSON.parse(payload.toString());
+    const response = await new Promise<any> ((resolve) => {
+        client.on('message', (topic, payload, packet) => {
+            if(topic === Restopic) {
+                console.log(`topic: ${topic} , payload: ${payload}, packet: ${packet}`)
+                let response = JSON.parse(payload.toString());
+                resolve(response)
+            }
+        });
+    }); 
 
-            return res.status(response.status).json({"message": response.message})
-        }
-    });
+    return res.status(response.status).json({"message": response.message})
 }));
 
 // PUT Requests
