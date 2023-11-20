@@ -5,7 +5,7 @@ import validateObjectId from '../../middlewares/validObjectId'
 import authDentist from "../../middlewares/dentistAuth";
 import asyncwrapper from "../../middlewares/asyncwrapper";
 import bcrypt from 'bcrypt';
-import client from "../../mqttConnection";
+import {client, handleMqtt} from "../../mqttConnection";
 
 const router = express.Router() 
 
@@ -40,42 +40,18 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper(async (req
 
     if (!client.connected) return res.status(500).json({"message": "Internal server error"});
 
-    const Reqtopic = "Dentist/get_appointments/req";
-    const Restopic = "Dentist/get_appointments/res";
+    let response
 
-    // Promisify the subscribe and publish operations
-    const subscribeAsync = () => new Promise<void>((resolve) => {
-        client.subscribe(Restopic, (err) => {
-            if (err !== null) console.log(err);
-            resolve();
-        });
-    });
+    try {
+        response = await handleMqtt(client, 'Dentist/get_appointments/req', 'Dentist/get_appointments/res', {dentist_id: dentist._id})
+        // Expected response is an array of appointments [Last element in array is response status]
+    }
+    catch(err) {
+        return res.status(500).json({"message":"Internal server error"});
+    }
 
-    const publishAsync = () => new Promise<void>((resolve) => {
-        client.publish(Reqtopic, JSON.stringify({dentist_id: dentist?._id}), {qos: 1}, (err) => {
-            if (err !== null) console.log(err);
-            resolve();
-        });
-    });
-
-    await Promise.all([subscribeAsync(), publishAsync()]);
-
-    //TODO : Add a timeout mechanism if request is not resolved after 5 seconds.
-    // Use Promise to handle asynchronous message handling
-    const response = await new Promise<any>((resolve) => {
-        client.on('message', (topic, payload, packet) => {
-            if (topic === Restopic) {
-                client.unsubscribe(Restopic);
-                console.log(`topic: ${topic}, payload: ${payload}`);
-
-                const parsedPayload = JSON.parse(payload.toString());
-                let status = parsedPayload.pop().status;
-                resolve({status, data: parsedPayload});
-            }
-        });
-    });
-
-    return res.status(response.status).json(response.data);
+    let status = response.pop().status;
+    return res.status(status).json(response); 
 }));
 
 router.get('/:id/appointment_slots/:appointment_id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
@@ -84,44 +60,21 @@ router.get('/:id/appointment_slots/:appointment_id', [validateObjectId], asyncwr
     
     if(!client.connected) return res.status(500).json({"message":"Internal server error"});
 
-    const Reqtopic = "Dentist/get_appointments/req";
-    const Restopic = "Dentist/get_appointments/res";
+    let response
 
-    // Promisify the subscribe and publish operations
-    const subscribeAsync = () => new Promise<void>((resolve) => {
-        client.subscribe(Restopic, (err) => {
-            if (err !== null) console.log(err);
-            resolve();
-        });
-    });
+    try {
+        response = await handleMqtt(client, 'Dentist/get_appointments/req', 'Dentist/get_appointments/res', {dentist_id: dentist._id})
+        // Expected response is an array of appointments [Last element in array is response status]
+    }
+    catch(err) {
+        return res.status(500).json({"message":"Internal server error"});
+    }
 
-    const publishAsync = () => new Promise<void>((resolve) => {
-        client.publish(Reqtopic, JSON.stringify({dentist_id: dentist?._id}), {qos: 1}, (err) => {
-            if (err !== null) console.log(err);
-            resolve();
-        });
-    });
-
-    await Promise.all([subscribeAsync(), publishAsync()]);
-    // TODO: Add a timout for unresolved requests after 5 sec.
-    const response = await new Promise<any>((resolve) => {
-        client.on('message', (topic, payload, packet) => {
-            if (topic === Restopic) {
-                client.unsubscribe(Restopic);
-                console.log(`topic: ${topic}, payload: ${payload}`);
-
-                const parsedPayload = JSON.parse(payload.toString());
-                let status = parsedPayload.pop().status;
-                resolve({status, data: parsedPayload});
-            }
-        });
-    });
-
-    let appointment = response.data.find((appointment: any) => {
+    let appointment = response.find((appointment: any) => {
         if(appointment._id === req.params.appointment_id) return appointment;
     })
 
-    if(appointment) return res.status(response.status).json(appointment);
+    if(appointment) return res.status(response.pop().status).json(appointment);
     return res.status(404).json({"message": "Appointment with given id was not found."});
 }));
 
@@ -174,48 +127,25 @@ router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrap
     let payload = '[';
     payload = req.body.map((appointment: any) => {
         return payload = payload + JSON.stringify({
-            ...appointment,
+            ...appointment, // appointment:{ date: '2024-08-16', time: '16:00'}
             dentist_id: dentist?._id,
-            patient: null,
+            patient_id: null,
             isBooked: false,
         });
     })
     payload = payload + ']';
 
-    const Reqtopic = "Dentist/add_appointment_slots/req";
-    const Restopic = "Dentist/add_appointment_slots/res";
-
-    // Publishing to the appointment service and wait for response 
     if(!client.connected) return res.status(500).json({"message": "Internal server error"});
         
-    let asyncSub = () => new Promise<void>((resolve) => {
-        client.subscribe(Restopic, (err) => {
-            if(err !== null) console.log(err);
-            resolve()
-        })
-    })
+    let response
 
-    let asyncPub = () => new Promise<void>((resolve) => {
-        client.publish(Reqtopic, payload, {qos: 1}, (err) => {
-            if(err !== null) console.log(err);
-            resolve()
-        });
-    })
-
-    await Promise.all([asyncSub(), asyncPub()]);
-     
-    //TODO: Add a timeout if Response took longer than 5 sec to get resolved. 
-    
-    const response = await new Promise<any> ((resolve) => {
-        client.on('message', (topic, payload, packet) => {
-            if(topic === Restopic) {
-                client.unsubscribe(Restopic);
-                console.log(`topic: ${topic} , payload: ${payload}, packet: ${packet}`)
-                let response = JSON.parse(payload.toString());
-                resolve(response)
-            }
-        });
-    }); 
+    try {
+        response = await handleMqtt(client, 'Dentist/add_appointment_slots/req', 'Dentist/add_appointment_slots/res', payload)
+        // Expected response is an response objecy[With statue field]
+    }
+    catch(err) {
+        return res.status(500).json({"message":"Internal server error"});
+    }
 
     return res.status(response.status).json({"message": response.message})
 }));
@@ -251,36 +181,16 @@ router.delete('/:id/appointment_slots/:appointment_id', [validateObjectId, authD
     if(!dentist) return res.status(404).json({"message":"Dentist with given id was not found"});
 
     if(!client.connected) return res.status(500).json({"message":"Internal server error"});
+    
+    let response
 
-    const Reqtopic = "Dentist/cancel_appointment/req";
-    const Restopic = "Dentist/cancel_appointment/res";
-
-    let subscribeAsync = () => new Promise<void>((resolve) => {
-        client.subscribe(Restopic, (err) => {
-            if (err !== null) console.log(err);
-            resolve();
-        })
-    });
-
-    let publishAsync = () => new Promise<void>((resolve) => {
-        client.publish(Reqtopic, JSON.stringify({dentist_id: dentist?._id, appointment_id: req.params.appointment_id}), {qos: 1}, (err) => {
-            if (err !== null) console.log(err);
-            resolve()
-        });
-    });
-
-    await Promise.all([subscribeAsync(), publishAsync()]);
-    // TODO: Add a timeout for 5 sec if response was not resolved in 5 sec.
-    const response = await new Promise<any>((resolve) => {
-        client.on('message', (topic, payload, packet) => {
-            if(Restopic === topic) {
-                client.unsubscribe(Restopic);
-                console.log(`topic: ${topic}, message: ${payload}`);
-                let response = JSON.parse(payload.toString());
-                resolve(response);
-            }
-        });
-    });
+    try {
+        response = await handleMqtt(client, 'Dentist/cancel_appointment/req', 'Dentist/cancel_appointment/res', {dentist_id: dentist._id, appointment_id: req.params.appointment_id});
+        // Expected response is an response objecy[With statue field]
+    }
+    catch(err) {
+        return res.status(500).json({"message":"Internal server error"});
+    }
 
     return res.status(response.status).json({"message":response.message});
 }));
