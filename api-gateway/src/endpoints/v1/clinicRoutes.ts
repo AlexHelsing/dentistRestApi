@@ -5,11 +5,11 @@ import asyncwrapper from "../../middlewares/asyncwrapper";
 import { Clinic } from '../../models/clinicModel';
 import bcrypt from 'bcrypt';
 import { Dentist, validateRegistration } from '../../models/dentistModel';
+import authAdmin from '../../middlewares/adminAuth';
 
 const router = expresss.Router();
 
 // Handlers
-// TODO: Add a authentication layer for endpoints that only the admin of the clinic is supposed to use
 // GET 
 
 router.get('/', asyncwrapper( async(req: Request, res: Response) => {
@@ -18,7 +18,7 @@ router.get('/', asyncwrapper( async(req: Request, res: Response) => {
     res.status(200).json(clinics);
 }));
 
-router.get('/:id', asyncwrapper( async(req: Request, res: Response) => {
+router.get('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
     let clinic = await Clinic.findById(req.params.id).select('-admin');
     if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found."});
     
@@ -26,8 +26,8 @@ router.get('/:id', asyncwrapper( async(req: Request, res: Response) => {
 }));
 
 // Recieving all the appointment slots of a single clinic
-router.get('/:id/appointment_slots', asyncwrapper( async(req: Request, res: Response) => {
-    let clinic = await Clinic.findById(req.params.id);
+router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
+    let clinic = await Clinic.findById(req.params.id).select('-admin');
     if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found"});
 
     // TODO: Add MQTT handler
@@ -51,7 +51,7 @@ router.post('/login_admin', asyncwrapper( async(req: Request, res: Response) => 
     res.status(201).json({"token": token});
 }));
 
-router.post('/:id/dentists', asyncwrapper( async(req: Request, res: Response) => {
+router.post('/:id/dentists', [validateObjectId, authAdmin], asyncwrapper( async(req: Request, res: Response) => {
     let clinic = await Clinic.findById(req.params.id).select('-admin').populate('dentists');
     if(!clinic) return res.status(404).json({"message": "clinic with given id was not found"});
 
@@ -75,7 +75,7 @@ router.post('/:id/dentists', asyncwrapper( async(req: Request, res: Response) =>
 }));
 
 // DELETE
-router.delete('/:id/dentists/:dentist_id', asyncwrapper(async(req: Request, res: Response) => {
+router.delete('/:id/dentists/:dentist_id', [validateObjectId, authAdmin], asyncwrapper(async(req: Request, res: Response) => {
     let clinic = await Clinic.findById(req.params.id);
     if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found."});
 
