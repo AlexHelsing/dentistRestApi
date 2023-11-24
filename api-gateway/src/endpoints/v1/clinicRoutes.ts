@@ -6,6 +6,7 @@ import { Clinic } from '../../models/clinicModel';
 import bcrypt from 'bcrypt';
 import { Dentist, validateRegistration } from '../../models/dentistModel';
 import authAdmin from '../../middlewares/adminAuth';
+import { handleMqtt } from '../../mqttConnection';
 
 const router = expresss.Router();
 
