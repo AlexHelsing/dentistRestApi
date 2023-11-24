@@ -19,7 +19,7 @@ client.on('error', (err) => {
     console.error(err.message)
 })
 
-async function handleMqtt(client: mqtt.MqttClient, requestTopic: string, responseTopic: string, payload: object | Array<any> | string){
+async function handleMqtt(requestTopic: string, responseTopic: string, payload: object | Array<any> | string){
 
     let publishAsync = () => new Promise<void>((resolve) => {
         client.publish(requestTopic, JSON.stringify(payload), {qos: 1}, (err) => {

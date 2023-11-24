@@ -6,7 +6,7 @@ import { Clinic } from '../../models/clinicModel';
 import bcrypt from 'bcrypt';
 import { Dentist, validateRegistration } from '../../models/dentistModel';
 import authAdmin from '../../middlewares/adminAuth';
-import { handleMqtt } from '../../mqttConnection';
+import { handleMqtt, client } from '../../mqttConnection';
 
 const router = expresss.Router();
 
@@ -31,7 +31,16 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper( async(req
     let clinic = await Clinic.findById(req.params.id).select('-admin');
     if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found"});
 
-    // TODO: Add MQTT handler
+    if(!client.connected) return res.status(500).json({"message":"Internal server error."});
+
+    let { name, dentists } = clinic;
+
+    let response = await handleMqtt(`Clinic/${name}/get_appointments/req`, `Clinic/${name}/get_appointments/res`, dentists);
+    // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
+
+    let { status,message } = response.pop();
+
+    return res.status(status).json(response);
 }));
 
 // POST
@@ -64,15 +73,22 @@ router.post('/:id/dentists', [validateObjectId, authAdmin], asyncwrapper( async(
     let exists = clinic.dentists.some((dentist) => {
         if (newDentist.email === dentist.email) return true;
     })
-
-    if(exists) return res.status(409).json({"message": "Dentist with given email is already registered in the clinic."});
+    // check if dentist with similar email previously exists on the systems.
+    let oldDentist = await Dentist.findOne({email: newDentist.email});
+    
+    if(exists || oldDentist) return res.status(409).json({"message": "Dentist with given email is already registered in the clinic."});
 
     await newDentist.hashPassword();
     newDentist = await newDentist.save();
 
     clinic.dentists.push(newDentist._id);
+    await clinic.save()
 
     return res.status(201).json({"message": "Dentist was added to the clinic successfuly"});
+}));
+
+router.post('/:id/appointment_slots', asyncwrapper( async(req: Request, res: Response) => {
+    // TODO
 }));
 
 // DELETE

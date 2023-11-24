@@ -26,13 +26,6 @@ router.get('/:id', [authDentist, validateObjectId], asyncwrapper( async(req: Req
     return res.status(200).json(dentist);
 }));
 
-router.get('/:id/location', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
-    let dentist = await Dentist.findById(req.params.id).select('-password');
-
-    if(!dentist) return res.status(404).json({"message": "Dentist with given id was not found"});
-    res.status(200).json(dentist.location)
-}));
-
 router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper(async (req: Request, res: Response) => {
 
     let dentist = await Dentist.findById(req.params.id);
@@ -43,7 +36,7 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper(async (req
     let response
 
     try {
-        response = await handleMqtt(client, 'Dentist/get_appointments/req', 'Dentist/get_appointments/res', {dentist_id: dentist._id})
+        response = await handleMqtt('Dentist/get_appointments/req', 'Dentist/get_appointments/res', {dentist_id: dentist._id})
         // Expected response is an array of appointments [Last element in array is response status]
     }
     catch(err) {
@@ -63,7 +56,7 @@ router.get('/:id/appointment_slots/:appointment_id', [validateObjectId], asyncwr
     let response
 
     try {
-        response = await handleMqtt(client, 'Dentist/get_appointments/req', 'Dentist/get_appointments/res', {dentist_id: dentist._id})
+        response = await handleMqtt('Dentist/get_appointments/req', 'Dentist/get_appointments/res', {dentist_id: dentist._id})
         // Expected response is an array of appointments [Last element in array is response status]
     }
     catch(err) {
@@ -140,7 +133,7 @@ router.post('/:id/appointment_slots', [validateObjectId, authDentist], asyncwrap
     let response
 
     try {
-        response = await handleMqtt(client, 'Dentist/add_appointment_slots/req', 'Dentist/add_appointment_slots/res', payload)
+        response = await handleMqtt('Dentist/add_appointment_slots/req', 'Dentist/add_appointment_slots/res', payload)
         // Expected response is an response objecy[With statue field]
     }
     catch(err) {
@@ -185,7 +178,7 @@ router.delete('/:id/appointment_slots/:appointment_id', [validateObjectId, authD
     let response
 
     try {
-        response = await handleMqtt(client, 'Dentist/cancel_appointment/req', 'Dentist/cancel_appointment/res', {dentist_id: dentist._id, appointment_id: req.params.appointment_id});
+        response = await handleMqtt('Dentist/cancel_appointment/req', 'Dentist/cancel_appointment/res', {dentist_id: dentist._id, appointment_id: req.params.appointment_id});
         // Expected response is an response objecy[With statue field]
     }
     catch(err) {

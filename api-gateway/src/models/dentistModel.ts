@@ -10,10 +10,6 @@ export interface Dentist extends Document{
     phone_number: Number,
     email: String,
     password: String,
-    location: {
-        lat: Number,
-        lng: Number
-    },
     DOB: Date,
     signJWT: () => Promise<string>,
     hashPassword: () => Promise<void>
@@ -27,10 +23,6 @@ const dentistSchema = new Schema<Dentist>({
     phone_number: {type: Number, required: true},
     email: {type: String, required: true, maxlength:255},
     password: {type: String, required: true, minlength:5, maxlength:255},
-    location: {
-        lat: {type: Number, required: true},
-        lng: {type: Number, required: true}
-    },
     DOB: {type: Date, required: true}
 });
 
@@ -55,10 +47,6 @@ export function validateRegistration(body: any) {
         phone_number: Joi.number().required(),
         email: Joi.string().email().required().max(255),
         password: Joi.string().required().max(255).min(5),
-        location: Joi.object({
-            lat: Joi.number().required(),
-            lng: Joi.number().required()
-        }),
         DOB: Joi.date().required()
     })
 
@@ -72,10 +60,6 @@ export function validateUpdate(body: any) {
         phone_number: Joi.number(),
         email: Joi.string().email().max(255),
         password: Joi.string().max(255).min(5),
-        location: Joi.object({
-            lat: Joi.number(),
-            lng: Joi.number()
-        }),
         DOB: Joi.date()
     })
 
