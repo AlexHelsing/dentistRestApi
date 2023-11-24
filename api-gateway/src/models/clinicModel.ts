@@ -1,6 +1,7 @@
 import { Schema, Types, Document } from "mongoose";
 import mongoose from "mongoose";
 import { Dentist } from "./dentistModel";
+import jwt from 'jsonwebtoken';
 
 interface Admin extends Document {
     username: String,
@@ -14,12 +15,13 @@ const adminSchema = new Schema<Admin>({
 
 interface Clinic extends Document {
     name: String,
-    dentists: Types.Array<typeof Dentist>,
+    dentists: [Dentist],
     coordinates: {
         lat: Number,
         lng: Number
     },
-    admin: Admin
+    admin: Admin,
+    signJWT: () => Promise<string>
 }
 
 const clinicSchema = new Schema<Clinic>({
@@ -33,5 +35,13 @@ const clinicSchema = new Schema<Clinic>({
     },
     admin: {type: adminSchema, required: true}
 });
+
+clinicSchema.methods.signJWT = async function() {
+    if(!process.env.JWT_SECRET){
+        throw new Error('No sceret was provided for jsonwebtoken');
+    }
+    let token = await jwt.sign({_id: this._id, admin: this.admin.username}, process.env.JWT_SECRET, {expiresIn: '8h'})
+    return token;
+}
 
 export const Clinic = mongoose.model<Clinic>('Clinic', clinicSchema);

@@ -4,7 +4,7 @@ import Joi = require("joi");
 import jwt = require('jsonwebtoken');
 import bcrypt from 'bcrypt';
 
-interface Dentist extends Document{
+export interface Dentist extends Document{
     firstname: String,
     lastname: String,
     phone_number: Number,
