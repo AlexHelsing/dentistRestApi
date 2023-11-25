@@ -87,7 +87,7 @@ router.post('/login', asyncwrapper( async(req: Request, res: Response ) => {
 router.put('/:dentist_id', [validateObjectId, authDentist], asyncwrapper( async(req: Request, res: Response) => {
 
     let { error } = validateUpdate(req.body);
-    if(error) return res.status(403).json('Invalid update format for dentist');
+    if(error) return res.status(403).json('Invalid update format for dentist' + error.details[0].message);
 
     if(req.body.password){
         let hashed = await bcrypt.hash(req.body.password, 10);
