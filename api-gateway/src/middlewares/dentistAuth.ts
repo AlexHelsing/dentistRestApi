@@ -13,7 +13,7 @@ export default async function authDentist (req: Request, res: Response, next: Ne
     try {
 
         let decoded = await jwt.verify(token, process.env.JWT_SECRET) as jwt.JwtPayload;
-        if(decoded._id !== req.params.id) return res.status(401).json({"message":"Unauthorized access"})
+        if(decoded._id !== req.params.dentist_id || !decoded.isDentist) return res.status(401).json({"message":"Unauthorized access"})
         
         next();
     }

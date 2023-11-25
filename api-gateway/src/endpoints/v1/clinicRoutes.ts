@@ -7,6 +7,7 @@ import bcrypt from 'bcrypt';
 import { Dentist, validateRegistration } from '../../models/dentistModel';
 import authAdmin from '../../middlewares/adminAuth';
 import { handleMqtt, client } from '../../mqttConnection';
+import authDentist from '../../middlewares/dentistAuth';
 
 const router = expresss.Router();
 
@@ -87,8 +88,27 @@ router.post('/:id/dentists', [validateObjectId, authAdmin], asyncwrapper( async(
     return res.status(201).json({"message": "Dentist was added to the clinic successfuly"});
 }));
 
-router.post('/:id/appointment_slots', asyncwrapper( async(req: Request, res: Response) => {
-    // TODO
+router.post('/:id/dentists/:dentist_id/appointment_slots', [validateObjectId, authDentist],asyncwrapper( async(req: Request, res: Response) => {
+    let clinic = await Clinic.findById(req.params.id).select('-admin').populate('dentists');
+    if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found."});
+
+    let dentist = clinic.dentists.find((dentist) => { 
+        return dentist._id.toHexString() === req.params.dentist_id;
+    })
+    if(!dentist) return res.status(404).json({"message": "Dentist with given id was not found."});
+
+    if(!client.connected) return res.status(500).json({"message": "Internal server error"});
+
+    const appointments = JSON.stringify(req.body.map((appointment: any) => ({
+        ...appointment,
+        dentist_id: dentist?._id,
+        patient_id: null,
+        isBooked: false,
+    })));
+    
+    let response = await handleMqtt(`Clinic/${clinic.name}/post_slots/req`,`Clinic/${clinic.name}/post_slots/res`, appointments);
+
+    return res.status(response.status).json({"message": response.message});
 }));
 
 // DELETE
@@ -97,24 +117,30 @@ router.delete('/:id/dentists/:dentist_id', [validateObjectId, authAdmin], asyncw
     if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found."});
 
     let dentistIndex = -1
-    let dentist;
 
-    clinic.dentists.forEach((doc, index) => {
-        if(doc._id === req.params.dentist_id) {
-            dentist = doc;
+    clinic.dentists.forEach((doc: Dentist, index) => {
+        if(doc._id.toHexString() === req.params.dentist_id) {
             dentistIndex = index;
             return;
         }
     })
 
     if(dentistIndex === -1) return res.status(404).json({"message": "Dentist with given id is not registered in the clinic."})
-
-    // TODO: MQTT Handler for removing all the appointments regarding to the dentists
     
-    // Removing the dentist from the dentists of the clinic
-    clinic.dentists.splice(dentistIndex, 1);
+    let dentist = clinic.dentists[dentistIndex];
 
-    return res.status(200).json({"message": "Dentist was removed from the the clinic alongside all of the appointments"})
+    let response = await handleMqtt(`Clinic/${clinic.name}/delete_dentist/req`, `Clinic/${clinic.name}/delete_dentist/res`, {dentist_id: dentist._id})
+    
+    if(response.status === 200) {
+        await Dentist.findByIdAndDelete(dentist._id);
+        clinic.dentists.splice(dentistIndex, 1);
+        await clinic.save();
+        
+        return res.status(200).json({"message": "Dentist was removed from the the clinic alongside all of the appointments"})
+    }
+    
+    res.status(response.status).json({"message": response.message});
 }));
+
 // exporting router
 export default router;

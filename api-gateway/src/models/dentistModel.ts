@@ -31,7 +31,7 @@ dentistSchema.methods.signJWT = async function() {
         throw new Error('No sceret was provided for jsonwebtoken');
     }
 
-    let token = await jwt.sign({_id: this._id}, process.env.JWT_SECRET, {expiresIn: '8h'})
+    let token = await jwt.sign({_id: this._id, isDentist: true}, process.env.JWT_SECRET, {expiresIn: '8h'})
     return token;
 }
 
