@@ -99,12 +99,12 @@ router.post('/:id/dentists/:dentist_id/appointment_slots', [validateObjectId, au
 
     if(!client.connected) return res.status(500).json({"message": "Internal server error"});
 
-    const appointments = JSON.stringify(req.body.map((appointment: any) => ({
+    const appointments = req.body.map((appointment: any) => ({
         ...appointment,
         dentist_id: dentist?._id,
         patient_id: null,
         isBooked: false,
-    })));
+    }));
     
     let response = await handleMqtt(`Clinic/${clinic.name}/post_slots/req`,`Clinic/${clinic.name}/post_slots/res`, appointments);
 
