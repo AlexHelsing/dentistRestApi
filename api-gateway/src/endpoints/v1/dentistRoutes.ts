@@ -33,7 +33,7 @@ router.get('/:dentist_id/appointment_slots', [validateObjectId], asyncwrapper(as
 
     if (!client.connected) return res.status(500).json({"message": "Internal server error"});
 
-    let response = await handleMqtt(`Dentist/${dentist.email}/get_appointments/req`, `Dentist/${dentist.email}/get_appointments/res`, {dentist_id: dentist._id})
+    let response = await handleMqtt(`Dentist/get_appointments/req`, `Dentist/${dentist.email}/get_appointments/res`, {dentist_id: dentist._id})
     // Expected response is an array of appointments [Last element in array is response status]
 
     let status = response.pop().status;
@@ -46,15 +46,8 @@ router.get('/:dentist_id/appointment_slots/:appointment_id', [validateObjectId],
     
     if(!client.connected) return res.status(500).json({"message":"Internal server error"});
 
-    let response
-
-    try {
-        response = await handleMqtt(`Dentist/${dentist.email}/get_appointments/req`, `Dentist/${dentist.email}/get_appointments/res`, {dentist_id: dentist._id})
-        // Expected response is an array of appointments [Last element in array is response status]
-    }
-    catch(err) {
-        return res.status(500).json({"message":"Internal server error"});
-    }
+    let response = await handleMqtt(`Dentist/get_appointments/req`, `Dentist/${dentist.email}/get_appointments/res`, {dentist_id: dentist._id})
+    // Expected response is an array of appointments [Last element in array is response status]
 
     let appointment = response.find((appointment: any) => {
         if(appointment._id === req.params.appointment_id) return appointment;
@@ -107,15 +100,8 @@ router.delete('/:dentist_id/appointment_slots/:appointment_id', [validateObjectI
 
     if(!client.connected) return res.status(500).json({"message":"Internal server error"});
     
-    let response
-
-    try {
-        response = await handleMqtt(`Dentist/${dentist.email}/cancel_appointment/req`, `Dentist/${dentist.email}/cancel_appointment/res`, {dentist_id: dentist._id, appointment_id: req.params.appointment_id});
-        // Expected response is an response objecy[With statue field]
-    }
-    catch(err) {
-        return res.status(500).json({"message":"Internal server error"});
-    }
+    let response = await handleMqtt(`Dentist/cancel_appointment/req`, `Dentist/${dentist.email}/cancel_appointment/res`, {dentist_id: dentist._id, appointment_id: req.params.appointment_id});
+    // Expected response is an response objecy[With statue field]
 
     return res.status(response.status).json({"message":response.message});
 }));

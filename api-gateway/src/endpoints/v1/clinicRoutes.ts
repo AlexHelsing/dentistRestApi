@@ -13,7 +13,6 @@ const router = expresss.Router();
 
 // Handlers
 // GET 
-
 router.get('/', asyncwrapper( async(req: Request, res: Response) => {
     let clinics = await Clinic.find().select('-dentists -admin');
     
@@ -36,7 +35,7 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper( async(req
 
     let { name, dentists } = clinic;
 
-    let response = await handleMqtt(`Clinic/${name}/get_appointments/req`, `Clinic/${name}/get_appointments/res`, dentists);
+    let response = await handleMqtt(`Clinic/get_appointments/req`, `Clinic/${name}/get_appointments/res`, dentists);
     // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
 
     let { status,message } = response.pop();
@@ -106,7 +105,7 @@ router.post('/:id/dentists/:dentist_id/appointment_slots', [validateObjectId, au
         isBooked: false,
     }));
     
-    let response = await handleMqtt(`Clinic/${clinic.name}/post_slots/req`,`Clinic/${clinic.name}/post_slots/res`, appointments);
+    let response = await handleMqtt(`Clinic/post_slots/req`,`Clinic/${clinic.name}/post_slots/res`, appointments);
 
     return res.status(response.status).json({"message": response.message});
 }));
@@ -129,7 +128,7 @@ router.delete('/:id/dentists/:dentist_id', [validateObjectId, authAdmin], asyncw
     
     let dentist = clinic.dentists[dentistIndex];
 
-    let response = await handleMqtt(`Clinic/${clinic.name}/delete_dentist/req`, `Clinic/${clinic.name}/delete_dentist/res`, {dentist_id: dentist._id})
+    let response = await handleMqtt(`Clinic/delete_dentist/req`, `Clinic/${clinic.name}/delete_dentist/res`, {dentist_id: dentist._id})
     
     if(response.status === 200) {
         await Dentist.findByIdAndDelete(dentist._id);
