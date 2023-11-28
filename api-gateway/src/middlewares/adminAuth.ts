@@ -1,7 +1,7 @@
 import {Request, Response, NextFunction} from 'express';
 import jwt from 'jsonwebtoken';
 
-export default async function authDentist (req: Request, res: Response, next: NextFunction) {
+export default async function authAdmin (req: Request, res: Response, next: NextFunction) {
     let token: string | undefined  = req.headers['x-access-token'] as string
     
     if(!token) return res.status(401).json({"message":"Access denided, token was not provided."});
@@ -13,8 +13,9 @@ export default async function authDentist (req: Request, res: Response, next: Ne
     try {
 
         let decoded = await jwt.verify(token, process.env.JWT_SECRET) as jwt.JwtPayload;
-        if(decoded._id !== req.params.dentist_id || !decoded.isDentist) return res.status(401).json({"message":"Unauthorized access"})
+        if(decoded._id !== req.params.id || !decoded.isAdmin) return res.status(401).json({"message":"Unauthorized access"})
         
+
         next();
     }
     catch(err) {

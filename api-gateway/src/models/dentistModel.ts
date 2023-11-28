@@ -4,16 +4,12 @@ import Joi = require("joi");
 import jwt = require('jsonwebtoken');
 import bcrypt from 'bcrypt';
 
-interface Dentist extends Document{
+export interface Dentist extends Document{
     firstname: String,
     lastname: String,
     phone_number: Number,
     email: String,
     password: String,
-    location: {
-        lat: Number,
-        lng: Number
-    },
     DOB: Date,
     signJWT: () => Promise<string>,
     hashPassword: () => Promise<void>
@@ -27,10 +23,6 @@ const dentistSchema = new Schema<Dentist>({
     phone_number: {type: Number, required: true},
     email: {type: String, required: true, maxlength:255, unique: true},
     password: {type: String, required: true, minlength:5, maxlength:255},
-    location: {
-        lat: {type: Number, required: true},
-        lng: {type: Number, required: true}
-    },
     DOB: {type: Date, required: true}
 });
 
@@ -39,7 +31,7 @@ dentistSchema.methods.signJWT = async function() {
         throw new Error('No sceret was provided for jsonwebtoken');
     }
 
-    let token = await jwt.sign({_id: this._id}, process.env.JWT_SECRET, {expiresIn: '8h'})
+    let token = await jwt.sign({_id: this._id, isDentist: true}, process.env.JWT_SECRET, {expiresIn: '8h'})
     return token;
 }
 
@@ -55,10 +47,6 @@ export function validateRegistration(body: any) {
         phone_number: Joi.number().required(),
         email: Joi.string().email().required().max(255),
         password: Joi.string().required().max(255).min(5),
-        location: Joi.object({
-            lat: Joi.number().required(),
-            lng: Joi.number().required()
-        }),
         DOB: Joi.date().required()
     })
 
@@ -72,10 +60,6 @@ export function validateUpdate(body: any) {
         phone_number: Joi.number(),
         email: Joi.string().email().max(255),
         password: Joi.string().max(255).min(5),
-        location: Joi.object({
-            lat: Joi.number(),
-            lng: Joi.number()
-        }),
         DOB: Joi.date()
     })
 
