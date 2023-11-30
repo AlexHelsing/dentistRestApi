@@ -14,7 +14,7 @@ const router = expresss.Router();
 // Handlers
 // GET 
 router.get('/', asyncwrapper( async(req: Request, res: Response) => {
-    let clinics = await Clinic.find().select('-dentists -admin');
+    let clinics = await Clinic.find().select('-dentists -admin').sort({name: 1});
     
     res.status(200).json(clinics);
 }));
@@ -69,22 +69,20 @@ router.post('/:id/dentists', [validateObjectId, authAdmin], asyncwrapper( async(
     if(error) return res.status(403).json({"message": "Invalid dentist info"})
 
     let newDentist = new Dentist(req.body)
-
-    let exists = clinic.dentists.some((dentist) => {
-        if (newDentist.email === dentist.email) return true;
-    })
     // check if dentist with similar email previously exists on the systems.
-    let oldDentist = await Dentist.findOne({email: newDentist.email});
+    let exists = await Dentist.findOne({email: newDentist.email});
     
-    if(exists || oldDentist) return res.status(409).json({"message": "Dentist with given email is already registered in the clinic."});
+    if(exists) return res.status(409).json({"message": "Dentist with given email is already registered in the clinic."});
 
     await newDentist.hashPassword();
     newDentist = await newDentist.save();
 
-    clinic.dentists.push(newDentist._id);
-    await clinic.save()
+    if(newDentist) {
+        clinic.dentists.push(newDentist._id);
+        await clinic.save()
+    }
 
-    return res.status(201).json({"message": "Dentist was added to the clinic successfuly"});
+    return res.status(201).json({"dentist_id": newDentist._id,"message": "Dentist was added to the clinic successfuly"});
 }));
 
 router.post('/:id/dentists/:dentist_id/appointment_slots', [validateObjectId, authDentist],asyncwrapper( async(req: Request, res: Response) => {
@@ -112,7 +110,7 @@ router.post('/:id/dentists/:dentist_id/appointment_slots', [validateObjectId, au
 
 // DELETE
 router.delete('/:id/dentists/:dentist_id', [validateObjectId, authAdmin], asyncwrapper(async(req: Request, res: Response) => {
-    let clinic = await Clinic.findById(req.params.id);
+    let clinic = await Clinic.findById(req.params.id).populate('dentists');
     if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found."});
 
     let dentistIndex = -1

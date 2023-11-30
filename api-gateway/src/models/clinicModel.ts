@@ -22,7 +22,7 @@ interface Clinic extends Document {
     },
     admin: Admin,
     address: String,
-    photo: Buffer,
+    photo: String, // URL to a clinic photo
     signJWT: () => Promise<string>
 }
 
@@ -37,7 +37,7 @@ const clinicSchema = new Schema<Clinic>({
     },
     admin: {type: adminSchema, required: true},
     address: {type: String, required: true, max: 255},
-    photo: {type: Buffer, required: true}
+    photo: {type: String, required: true}
 });
 
 clinicSchema.methods.signJWT = async function() {
