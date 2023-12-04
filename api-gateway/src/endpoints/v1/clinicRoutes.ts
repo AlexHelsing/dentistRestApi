@@ -8,6 +8,7 @@ import { Dentist, validateRegistration } from '../../models/dentistModel';
 import authAdmin from '../../middlewares/adminAuth';
 import { handleMqtt, client } from '../../mqttConnection';
 import authDentist from '../../middlewares/dentistAuth';
+import { randomUUID } from 'crypto';
 
 const router = expresss.Router();
 
@@ -96,14 +97,17 @@ router.post('/:id/dentists/:dentist_id/appointment_slots', [validateObjectId, au
 
     if(!client.connected) return res.status(500).json({"message": "Internal server error"});
 
-    const appointments = req.body.map((appointment: any) => ({
+    const responseTopic: string = randomUUID();
+    let appointments = req.body.map((appointment: any) => ({
         ...appointment,
         dentist_id: dentist?._id,
         patient_id: null,
         isBooked: false,
     }));
     
-    let response = await handleMqtt(`Clinic/post_slots/req`,`Clinic/${clinic.name}/post_slots/res`, appointments);
+    appointments.push({response_topic: responseTopic});
+    
+    let response = await handleMqtt(`Clinic/post_slots/req`,`Clinic/${responseTopic}/post_slots/res`, appointments);
 
     return res.status(response.status).json({"message": response.message});
 }));

@@ -1,8 +1,11 @@
 import mqtt from 'mqtt';
 
-const BROKER_URL = process.env.BROKER_URL || "mqtt://localhost"; 
-const USER = process.env.USER || 'user';
-const PASSWORD = process.env.PASSWORD || 'password';
+import * as dotenv from 'dotenv';
+dotenv.config({ path: 'src/config/.env' });
+
+const BROKER_URL = process.env.MQTT_BROKER_URL || "mqtt://localhost"; 
+const USER = process.env.MQTT_USER || 'user';
+const PASSWORD = process.env.MQTT_PASSWORD || 'password';
 
 const options = {
     username: USER,
