@@ -36,7 +36,9 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper( async(req
 
     let { name, dentists } = clinic;
 
-    let response = await handleMqtt(`Clinic/get_appointments/req`, `Clinic/${name}/get_appointments/res`, dentists);
+    const responseTopic: string = randomUUID();
+
+    let response = await handleMqtt(`Clinic/get_appointments/req`, `Clinic/${responseTopic}/get_appointments/res`, [...dentists, {response_topic: responseTopic}]);
     // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
 
     let { status,message } = response.pop();
