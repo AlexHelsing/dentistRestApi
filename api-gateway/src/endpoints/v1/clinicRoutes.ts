@@ -9,6 +9,7 @@ import authAdmin from '../../middlewares/adminAuth';
 import { handleMqtt, client } from '../../mqttConnection';
 import authDentist from '../../middlewares/dentistAuth';
 import { randomUUID } from 'crypto';
+import { SourceTextModule } from 'vm';
 
 const router = expresss.Router();
 
@@ -53,15 +54,34 @@ router.get('/:id/appointment_slots/:date', [validateObjectId], asyncwrapper( asy
     if(!client.connected) return res.status(500).json({"message":"Internal server error."});
 
     const responseTopic: string = randomUUID();
-    let { dentists, } = clinic;
     let date = req.params.date;
 
-    console.log("Hell");
+    let clinics  = req.params.id;
 
-    let response = await handleMqtt(`Clinic/get_appointments/date/req`, `Clinic/${responseTopic}/get_appointments/res`, {dentists, date, responseTopic});
+    let response = await handleMqtt(`Clinic/get_appointments/date/req`, `Clinic/${responseTopic}/get_appointments/res`, {clinics: clinics, date, responseTopic});
     // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
 
     let { status, message } = response.pop();
+
+    return res.status(status).json(response);
+}));
+
+router.get('/availability_count/:date', asyncwrapper( async(req: Request, res: Response) => {
+    let clinic = await Clinic.find().select('-admin');
+    if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found"});
+
+    if(!client.connected) return res.status(500).json({"message":"Internal server error."});
+
+    const responseTopic: string = randomUUID();
+    let date = req.params.date;
+
+    const clinics = clinic.map(clinic => clinic._id);
+
+    let response = await handleMqtt(`Clinic/get_clinics_availability/date/req`, `Clinic/${responseTopic}/get_clinics_availability/date/res`, {clinics, date, responseTopic});
+    // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
+
+    console.log(response);
+    let { status, message } = response.pop()
 
     return res.status(status).json(response);
 }));
