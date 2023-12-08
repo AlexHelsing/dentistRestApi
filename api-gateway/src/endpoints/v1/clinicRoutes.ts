@@ -36,9 +36,31 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper( async(req
     if(!client.connected) return res.status(500).json({"message":"Internal server error."});
 
     const responseTopic: string = randomUUID();
-    let { name, dentists } = clinic;
 
-    let response = await handleMqtt(`Clinic/get_appointments/req`, `Clinic/${responseTopic}/get_appointments/res`, {dentists, responseTopic});
+    let clinics = clinic._id;
+
+    let response = await handleMqtt(`Clinic/get_appointments/req`, `Clinic/${responseTopic}/get_appointments/res`, { clinics , responseTopic });
+    // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
+
+    let { status, message } = response.pop();
+
+    return res.status(status).json(response);
+}));
+
+router.get('/appointment_slots/city', asyncwrapper( async(req: Request, res: Response) => {
+    const { city } = req.body;
+    let clinics = await Clinic.find({ city }).select('-admin');
+    if(!clinics) return res.status(404).json({"message": "Clinic with given id was not found"});
+
+    if(!client.connected) return res.status(500).json({"message":"Internal server error."});
+
+    const responseTopic: string = randomUUID();
+
+    const clinicIds = clinics.map((clinic) => clinic._id)
+ 
+    //console.log(clinicIds);
+
+    let response = await handleMqtt(`Clinic/get_appointments/city/req`, `Clinic/${responseTopic}/get_appointments/city/res`, { clinicIds, responseTopic });
     // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
 
     let { status, message } = response.pop();
@@ -80,7 +102,6 @@ router.get('/availability_count/:date', asyncwrapper( async(req: Request, res: R
     let response = await handleMqtt(`Clinic/get_clinics_availability/date/req`, `Clinic/${responseTopic}/get_clinics_availability/date/res`, {clinics, date, responseTopic});
     // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
 
-    console.log(response);
     let { status, message } = response.pop()
 
     return res.status(status).json(response);

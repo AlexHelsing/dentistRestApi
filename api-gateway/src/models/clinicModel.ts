@@ -21,7 +21,8 @@ interface Clinic extends Document {
         lng: Number
     },
     admin: Admin,
-    address: String,
+    city: String,
+    zip: String,
     photo: String, // URL to a clinic photo
     signJWT: () => Promise<string>
 }
@@ -36,7 +37,8 @@ const clinicSchema = new Schema<Clinic>({
         lng: {type: Number, required: true}
     },
     admin: {type: adminSchema, required: true},
-    address: {type: String, required: true, max: 255},
+    city: {type: String, required: true, max: 255},
+    zip:{type: String, required: false, max: 255},
     photo: {type: String, required: true}
 });
 
