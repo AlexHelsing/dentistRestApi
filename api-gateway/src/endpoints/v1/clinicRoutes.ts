@@ -16,9 +16,23 @@ const router = expresss.Router();
 // Handlers
 // GET 
 router.get('/', asyncwrapper( async(req: Request, res: Response) => {
-    let clinics = await Clinic.find().select('-dentists -admin').sort({name: 1});
+    // Gothenburg is the standard city to fetch when entering "dentistries" page in frontend client.
+    let clinics = await Clinic.find({ city: "Gothenburg" }).select('-dentists -admin').sort({ name: 1 });
     
     res.status(200).json(clinics);
+}));
+
+// When user enters city in the search bar this method wll be called.
+router.post('/city', asyncwrapper( async(req: Request, res: Response) => {
+    let city = req.body.city;
+    if(city === undefined){
+        let clinics = await Clinic.find({ city: "Gothenburg" }).select('-dentists -admin').sort({ name: 1 });
+        res.status(200).json(clinics);
+    }
+    else{
+        let clinics = await Clinic.find({ city: req.body.city }).select('-dentists -admin').sort({ name: 1 });
+        res.status(200).json(clinics);
+    }
 }));
 
 router.get('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
@@ -48,7 +62,7 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper( async(req
 }));
 
 router.get('/appointment_slots/city', asyncwrapper( async(req: Request, res: Response) => {
-    const { city } = req.body;
+    const city: String = "Gothenburg";
     let clinics = await Clinic.find({ city }).select('-admin');
     if(!clinics) return res.status(404).json({"message": "Clinic with given id was not found"});
 
