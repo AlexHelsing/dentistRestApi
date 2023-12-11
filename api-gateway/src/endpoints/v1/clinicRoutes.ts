@@ -132,13 +132,17 @@ router.delete('/:id/dentists/:dentist_id', [validateObjectId, authAdmin], asyncw
     
     let dentist = clinic.dentists[dentistIndex];
 
-    let response = await handleMqtt(`Clinic/delete_dentist/req`, `Clinic/${clinic.name}/delete_dentist/res`, {dentist_id: dentist._id})
-    
+    const responseTopic: string = randomUUID();
+    // Getting the patient_ids from the appointments created by the id of target dentist
+    let appointments = await handleMqtt('Dentist/get_appointments/req', `Dentist/${responseTopic}/get_appointments/res`, {dentist_id: dentist._id, response_topic: responseTopic});
+    let response = await handleMqtt(`Clinic/delete_dentist/req`, `Clinic/${responseTopic}/delete_dentist/res`, {dentist_id: dentist._id, response_topic: responseTopic});
+
     if(response.status === 200) {
         await Dentist.findByIdAndDelete(dentist._id);
         clinic.dentists.splice(dentistIndex, 1);
         await clinic.save();
         
+        // TODO: send a notification to patients who had an appointment with the deleted dentist.
         return res.status(200).json({"message": "Dentist was removed from the the clinic alongside all of the appointments"})
     }
     
