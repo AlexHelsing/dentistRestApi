@@ -88,31 +88,6 @@ router.post('/:id/dentists', [validateObjectId, authAdmin], asyncwrapper( async(
     return res.status(201).json({"dentist_id": newDentist._id,"message": "Dentist was added to the clinic successfuly"});
 }));
 
-router.post('/:id/dentists/:dentist_id/appointment_slots', [validateObjectId, authDentist],asyncwrapper( async(req: Request, res: Response) => {
-    let clinic = await Clinic.findById(req.params.id).select('-admin').populate('dentists');
-    if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found."});
-
-    let dentist = clinic.dentists.find((dentist) => { 
-        return dentist._id.toHexString() === req.params.dentist_id;
-    })
-    if(!dentist) return res.status(404).json({"message": "Dentist with given id was not found."});
-
-    if(!client.connected) return res.status(500).json({"message": "Internal server error"});
-
-    const responseTopic: string = randomUUID();
-    let appointments = req.body.map((appointment: any) => ({
-        ...appointment,
-        dentist_id: dentist?._id,
-        patient_id: null,
-        isBooked: false,
-    }));
-    
-    appointments.push({response_topic: responseTopic});
-    
-    let response = await handleMqtt(`Clinic/post_slots/req`,`Clinic/${responseTopic}/post_slots/res`, appointments);
-
-    return res.status(response.status).json({"message": response.message});
-}));
 
 // DELETE
 router.delete('/:id/dentists/:dentist_id', [validateObjectId, authAdmin], asyncwrapper(async(req: Request, res: Response) => {
