@@ -6,6 +6,8 @@ import authDentist from "../../middlewares/dentistAuth";
 import asyncwrapper from "../../middlewares/asyncwrapper";
 import bcrypt from 'bcrypt';
 import {client, handleMqtt} from "../../mqttConnection";
+import _ from 'lodash';
+import { randomUUID } from "crypto";
 
 const router = express.Router() 
 
@@ -33,11 +35,11 @@ router.get('/:dentist_id/appointment_slots', [validateObjectId], asyncwrapper(as
 
     if (!client.connected) return res.status(500).json({"message": "Internal server error"});
 
-    let response = await handleMqtt(`Dentist/get_appointments/req`, `Dentist/${dentist.email}/get_appointments/res`, {dentist_id: dentist._id})
+    const responseTopic: string = randomUUID();
+    let response = await handleMqtt(`Dentist/get_appointments/req`, `Dentist/${responseTopic}/get_appointments/res`, {dentist_id: dentist._id, response_topic: responseTopic});
     // Expected response is an array of appointments [Last element in array is response status]
 
-    let status = response.pop().status;
-    return res.status(status).json(response); 
+    return res.status(200).json(response); 
 }));
 
 router.get('/:dentist_id/appointment_slots/:appointment_id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
@@ -46,7 +48,8 @@ router.get('/:dentist_id/appointment_slots/:appointment_id', [validateObjectId],
     
     if(!client.connected) return res.status(500).json({"message":"Internal server error"});
 
-    let response = await handleMqtt(`Dentist/get_appointments/req`, `Dentist/${dentist.email}/get_appointments/res`, {dentist_id: dentist._id})
+    const responseTopic: string = randomUUID();
+    let response = await handleMqtt(`Dentist/get_appointments/req`, `Dentist/${responseTopic}/get_appointments/res`, {dentist_id: dentist._id, response_topic: responseTopic})
     // Expected response is an array of appointments [Last element in array is response status]
 
     let appointment = response.find((appointment: any) => {
@@ -70,10 +73,31 @@ router.post('/login', asyncwrapper( async(req: Request, res: Response ) => {
     let match = await bcrypt.compare(req.body.password, dentist.password.toString());
     if(match){
         let token = await dentist.signJWT();
-        return res.status(201).json({"token": token});
+        return res.status(201).json({..._.pick(dentist, ['_id', 'phone_number', 'firstname', 'lastname', 'email']), "token": token});
     }
 
     res.status(403).json({"message": "incorrect password"});
+}));
+
+router.post('/:dentist_id/appointment_slots', [validateObjectId, authDentist],asyncwrapper( async(req: Request, res: Response) => {
+    let dentist = await Dentist.findById(req.params.dentist_id);
+    if(!dentist) return res.status(404).json({"message": "Dentist with given id was not found."});
+
+    if(!client.connected) return res.status(500).json({"message": "Internal server error"});
+
+    const responseTopic: string = randomUUID();
+    let appointments = req.body.map((appointment: any) => ({
+        ...appointment,
+        dentist_id: dentist?._id,
+        patient_id: null,
+        isBooked: false,
+    }));
+    
+    appointments.push({response_topic: responseTopic});
+    
+    let response = await handleMqtt(`Dentist/post_slots/req`,`Dentist/${responseTopic}/post_slots/res`, appointments);
+
+    return res.status(response.status).json({"message": response.message});
 }));
 
 // PUT 
@@ -100,7 +124,8 @@ router.delete('/:dentist_id/appointment_slots/:appointment_id', [validateObjectI
 
     if(!client.connected) return res.status(500).json({"message":"Internal server error"});
     
-    let response = await handleMqtt(`Dentist/cancel_appointment/req`, `Dentist/${dentist.email}/cancel_appointment/res`, {dentist_id: dentist._id, appointment_id: req.params.appointment_id});
+    const responseTopic: string = randomUUID();
+    let response = await handleMqtt(`Dentist/cancel_appointment/req`, `Dentist/${responseTopic}/cancel_appointment/res`, {dentist_id: dentist._id, appointment_id: req.params.appointment_id, response_topic: responseTopic});
     // Expected response is an response objecy[With statue field]
 
     return res.status(response.status).json({"message":response.message});
