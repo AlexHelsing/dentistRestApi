@@ -20,6 +20,20 @@ router.get('/', asyncwrapper( async(req: Request, res: Response) => {
     res.status(200).json(clinics);
 }));
 
+router.post('/city', asyncwrapper( async(req: Request, res: Response) => {
+    let city = req.body.city;
+    try {
+        let clinics = await Clinic.find({ city: req.body.city }).select('-dentists -admin').sort({ name: 1 });
+        console.log(clinics);
+        res.status(200).json(clinics);
+        }
+    catch{
+        res.status(500).json(console.error()
+        )
+    }
+}));
+
+
 router.get('/:id', [validateObjectId], asyncwrapper( async(req: Request, res: Response) => {
     let clinic = await Clinic.findById(req.params.id).select('-admin');
     if(!clinic) return res.status(404).json({"message": "Clinic with given id was not found."});
@@ -35,11 +49,10 @@ router.get('/:id/appointment_slots', [validateObjectId], asyncwrapper( async(req
     if(!client.connected) return res.status(500).json({"message":"Internal server error."});
 
     const responseTopic: string = randomUUID();
-    let { name, dentists } = clinic;
 
-    const responseTopic: string = randomUUID();
+    let clinicId = clinic._id;
 
-    let response = await handleMqtt(`Clinic/get_appointments/req`, `Clinic/${responseTopic}/get_appointments/res`, [...dentists, {response_topic: responseTopic}]);
+    let response = await handleMqtt(`Clinic/get_appointments/req`, `Clinic/${responseTopic}/get_appointments/res`,  {clinicId : clinicId, response_topic: responseTopic});
     // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
 
     let { status, message } = response.pop();
