@@ -13,6 +13,7 @@ import { client, handleMqtt } from '../../mqttConnection';
 import _ from 'lodash';
 import { randomUUID } from 'crypto';
 import { Clinic } from '../../models/clinicModel';
+import pusher from '../../utils/pusher';
 
 const router = express.Router();
 
@@ -232,8 +233,11 @@ router.delete(
         response_topic: responseTopic,
       }
     );
-    // Expected response is an response objecy[With statue field]
 
+    // Trigger pusher event to user-userId, id is response.message, FYI response.message is the appointment id right now, theres no other way to get the appointment id
+    pusher.trigger(`user-${response.message}`, 'appointment-cancelled', {});
+
+    // Expected response is an response objecy[With statue field]
     return res.status(response.status).json({ message: response.message });
   })
 );
