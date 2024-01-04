@@ -14,6 +14,7 @@ import _ from 'lodash';
 import { randomUUID } from 'crypto';
 import { Clinic } from '../../models/clinicModel';
 import pusher from '../../utils/pusher';
+import axios from 'axios';
 
 const router = express.Router();
 
@@ -63,7 +64,7 @@ router.get(
     let response = await handleMqtt(
       `Dentist/get_appointments/req`,
       `Dentist/${responseTopic}/get_appointments/res`,
-      { dentist_id: dentist._id, response_topic: responseTopic }
+      { dentistId: dentist._id, responseTopic: responseTopic }
     );
     // Expected response is an array of appointments [Last element in array is response status]
 
@@ -88,7 +89,7 @@ router.get(
     let response = await handleMqtt(
       `Dentist/get_appointments/req`,
       `Dentist/${responseTopic}/get_appointments/res`,
-      { dentist_id: dentist._id, response_topic: responseTopic }
+      { dentistId: dentist._id, responseTopic: responseTopic }
     );
     // Expected response is an array of appointments [Last element in array is response status]
 
@@ -161,13 +162,13 @@ router.post(
     const responseTopic: string = randomUUID();
     let appointments = req.body.map((appointment: any) => ({
       ...appointment,
-      dentist_id: dentist?._id,
-      clinic_id: clinic?._id,
-      patient_id: null,
+      dentistId: dentist?._id,
+      clinicId: clinic?._id,
+      patientId: null,
       booked: false,
     }));
 
-    appointments.push({ response_topic: responseTopic });
+    appointments.push({ responseTopic: responseTopic });
 
     let response = await handleMqtt(
       `Dentist/post_slots/req`,
@@ -228,17 +229,33 @@ router.delete(
       `Dentist/cancel_appointment/req`,
       `Dentist/${responseTopic}/cancel_appointment/res`,
       {
-        dentist_id: dentist._id,
-        appointment_id: req.params.appointment_id,
-        response_topic: responseTopic,
+        dentistId: dentist._id,
+        appointmentId: req.params.appointment_id,
+        responseTopic: responseTopic,
       }
     );
 
+    if(response.status === 200) {
+      let notification = {
+        subject: "cancelling",
+        date: response.date,
+        startTime: response.startTime,
+        endTime: response.endTime, 
+        patientId: response.patientId
+      }
+      axios.post(`${process.env.PATIENT_SERVICE}/patients/notification`, notification)
+      .then((res) => {
+        console.log(res.status)
+      })
+      .catch((err) => {
+        console.log(err.response.data)
+      });
+    }
     // Trigger pusher event to user-userId, id is response.message, FYI response.message is the appointment id right now, theres no other way to get the appointment id
-    pusher.trigger(`user-${response.message}`, 'appointment-cancelled', {});
+    pusher.trigger(`user-${response.patientId}`, 'appointment-cancelled', {});
 
-    // Expected response is an response objecy[With statue field]
-    return res.status(response.status).json({ message: response.message });
+    // Expected response is an response object[With status field]
+    return res.status(response.status).json(response);
   })
 );
 
