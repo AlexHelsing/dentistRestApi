@@ -146,7 +146,7 @@ router.post(
 
     let token = await clinic.signJWT();
 
-    res.status(201).json({ token: token });
+    res.status(201).json({ token: token , clinicId: clinic._id});
   })
 );
 
