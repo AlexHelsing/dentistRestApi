@@ -175,6 +175,8 @@ router.post(
       appointments
     );
 
+    pusher.trigger('global-channel', 'appointment-event', {});
+
     return res.status(response.status).json({ message: response.message });
   })
 );
