@@ -49,7 +49,7 @@ router.get(
   '/:id',
   [validateObjectId],
   asyncwrapper(async (req: Request, res: Response) => {
-    let clinic = await Clinic.findById(req.params.id).select('-admin');
+    let clinic = await Clinic.findById(req.params.id).select('-admin').populate('dentists');
     if (!clinic)
       return res
         .status(404)
