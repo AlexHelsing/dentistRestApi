@@ -6,6 +6,7 @@ import * as dotenv from 'dotenv';
 import { errorHandlerMiddleware } from './middlewares/errorMiddleware';
 import morgan from 'morgan';
 import logger from './logger';
+import connectCache from './cacheConnection';
 //For env File 
 
 dotenv.config({ path: 'src/config/.env' });
@@ -13,6 +14,8 @@ dotenv.config({ path: 'src/config/.env' });
 
 // Database connection
 connectDB();
+
+connectCache();
 
 const app: Express = express();
 console.log(process.env.JWT_SECRET)

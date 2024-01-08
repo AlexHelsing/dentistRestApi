@@ -9,10 +9,18 @@ import authAdmin from '../../middlewares/adminAuth';
 import { handleMqtt, client } from '../../mqttConnection';
 import authDentist from '../../middlewares/dentistAuth';
 import { randomUUID } from 'crypto';
+const redis = require('redis');
+
+// other imports and setup...
+
+const redisClient = redis.createClient();
+
+// Connect to Redis
+redisClient.connect();
+
 
 const router = expresss.Router();
 
-// Handlers
 // GET
 router.get(
   '/',
@@ -58,6 +66,37 @@ router.get(
     return res.status(200).json(clinic);
   })
 );
+
+router.get('/name/:id', [validateObjectId], asyncwrapper(async (req: Request, res: Response) => {
+    const clinicId = req.params.id;
+    const redisKey = `clinic:${clinicId}`; // Unique key for each clinic
+  
+    try {
+      // Try to fetch clinic data from Redis cache
+      const cachedClinic = await redisClient.get(redisKey);
+  
+      if (cachedClinic) {
+        // Cache hit - send the cached response
+        console.log("Returning from cache");
+        return res.status(200).json(JSON.parse(cachedClinic));
+      } else {
+        // Cache miss - fetch data from MongoDB
+        let clinic = await Clinic.findById(clinicId).select('-admin');
+        if (!clinic) {
+          return res.status(404).json({ message: 'Clinic with given id was not found.' });
+        } else {
+          // Update the Redis cache with the new data
+          await redisClient.set(redisKey, JSON.stringify(clinic.name));
+  
+          // Return the response
+          return res.status(200).json(clinic.name);
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ message: 'Internal server error' });
+    }
+  }));
 
 // Recieving all the appointment slots of a single clinic
 router.get(
