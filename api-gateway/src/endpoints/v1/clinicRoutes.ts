@@ -57,7 +57,7 @@ router.get(
   '/:id',
   [validateObjectId],
   asyncwrapper(async (req: Request, res: Response) => {
-    let clinic = await Clinic.findById(req.params.id).select('-admin');
+    let clinic = await Clinic.findById(req.params.id).select('-admin').populate('dentists');
     if (!clinic)
       return res
         .status(404)
@@ -119,7 +119,7 @@ router.get(
     let response = await handleMqtt(
       `Clinic/get_appointments/req`,
       `Clinic/${responseTopic}/get_appointments/res`,
-      { clinic_id: clinicId, response_topic: responseTopic }
+      { clinicId: clinicId, responseTopic: responseTopic }
     );
     // Response format: [...appointment Objects, {"status": 200, "message": "some details"}]
 
@@ -185,7 +185,7 @@ router.post(
 
     let token = await clinic.signJWT();
 
-    res.status(201).json({ token: token });
+    res.status(201).json({ token: token , clinicId: clinic._id});
   })
 );
 
@@ -261,12 +261,12 @@ router.delete(
     let appointments = await handleMqtt(
       'Dentist/get_appointments/req',
       `Dentist/${responseTopic}/get_appointments/res`,
-      { dentist_id: dentist._id, response_topic: responseTopic }
+      { dentistId: dentist._id, responseTopic: responseTopic }
     );
     let response = await handleMqtt(
       `Clinic/delete_dentist/req`,
       `Clinic/${responseTopic}/delete_dentist/res`,
-      { dentist_id: dentist._id, response_topic: responseTopic }
+      { dentistId: dentist._id, responseTopic: responseTopic }
     );
 
     if (response.status === 200) {
